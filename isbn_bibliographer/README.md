@@ -35,9 +35,8 @@ requests
     ```bash
     python -m venv venv
     source venv/bin/activate  # On Windows: venv\Scripts\activate
-    pip install pandas openpyxl xlrd requests
+    pip install -r requirements.txt
     ```
-    *(A `requirements.txt` file will be added later for easier installation via `pip install -r requirements.txt`)*
 
 3.  **Configuration (Optional but Recommended for Google Books API):**
     Create a `config.json` file in the `isbn_bibliographer` directory by copying `config.json.template`.
@@ -110,6 +109,31 @@ Or for individual test files:
 python -m unittest tests.test_isbn_validator
 python -m unittest tests.test_api_manager
 ```
+
+## Building the Executable
+
+This project can be packaged into a standalone executable using PyInstaller (which is included in `requirements.txt`).
+
+1.  **Ensure PyInstaller is installed:**
+    If you followed the setup instructions and installed via `requirements.txt`, PyInstaller should already be available in your virtual environment.
+
+2.  **Navigate to the project's root directory (`isbn_bibliographer`).**
+
+3.  **Run PyInstaller:**
+    Open your terminal or command prompt in the `isbn_bibliographer` directory and execute the following command:
+    ```bash
+    pyinstaller --name isbn_bibliographer --onefile main.py
+    ```
+    *   `--name isbn_bibliographer`: Sets the name of the executable and related files.
+    *   `--onefile`: Packages everything into a single executable file.
+    *   `main.py`: Specifies the main script of the application.
+
+4.  **Find the Executable:**
+    After PyInstaller finishes, you will find the standalone executable in a new directory named `dist`.
+    *   On Windows: `dist/isbn_bibliographer.exe`
+    *   On macOS/Linux: `dist/isbn_bibliographer`
+
+    You can copy this executable to another location and run it without needing a Python installation (though the target system must be compatible with the OS used for building).
 
 ## Project Structure
 
