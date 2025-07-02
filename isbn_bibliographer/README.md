@@ -52,27 +52,41 @@ requests
 
 ## Usage
 
-Run the script from the `isbn_bibliographer` directory:
+The script can be run in two main modes: **Batch Mode** (processing an input Excel file) or **Scanner Mode** (processing ISBNs entered via keyboard emulation, e.g., from a USB HID barcode scanner).
+
+### General Command Structure
 
 ```bash
-python main.py <input_excel_file> <output_excel_file> [--config <path_to_config.json>]
+python main.py [MODE_ARGUMENT] --output_excel <output_file.xlsx> [--config <path_to_config.json>]
 ```
+*   `--output_excel <output_file.xlsx>`: (Required for all modes) Specifies the Excel file where bibliography data will be saved.
+*   `--config <path_to_config.json>`: (Optional) Path to a JSON configuration file.
 
-**Examples:**
+### Mode Arguments (Choose One)
 
-1.  **Basic usage (assuming `config.json` is in the same directory or using default settings):**
+1.  **Batch Mode**:
+    *   `--input_excel <input_file.xlsx>`: Specifies the input Excel file containing ISBNs.
+
+    **Example (Batch Mode):**
     ```bash
-    python main.py path/to/your_isbns.xlsx path/to/output_bibliography.xlsx
+    python main.py --input_excel path/to/your_isbns.xlsx --output_excel path/to/output_bibliography.xlsx
     ```
 
-2.  **With a specific configuration file:**
+2.  **HID Scanner Mode**:
+    *   `--scanner`: Activates the HID scanner mode. The script will prompt for ISBNs to be "scanned" (typed in and Enter pressed).
+
+    **Example (Scanner Mode):**
     ```bash
-    python main.py input.xlsx output.xlsx --config my_custom_config.json
+    python main.py --scanner --output_excel path/to/output_bibliography.xlsx
     ```
+    In scanner mode:
+    *   The script will prompt you to enter ISBNs one by one.
+    *   Type `QUITSCAN` (all caps) and press Enter to finish the scanning session and save the data.
+    *   If the output Excel file already exists, new scans will be appended to the existing data. Otherwise, a new file will be created.
 
-### Input Excel File Format
+### Input Excel File Format (for Batch Mode)
 
-The input Excel file should have a column containing ISBN numbers. By default, the script looks for a column named "ISBN". This can be changed in the `config.json` file (`isbn_column_name` setting).
+The input Excel file for batch mode should have a column containing ISBN numbers. By default, the script looks for a column named "ISBN". This can be changed in the `config.json` file (`isbn_column_name` setting).
 
 Example `input.xlsx`:
 
