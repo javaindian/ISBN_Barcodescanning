@@ -3,6 +3,7 @@ import argparse
 import logging
 import time
 import json # Added for loading config if used later
+import os # For checking file existence
 
 from modules.isbn_validator import normalize_isbn, is_valid_isbn10, is_valid_isbn13, to_isbn13
 from modules.api_manager import fetch_book_data_google
@@ -104,32 +105,20 @@ def process_single_isbn(isbn_raw: str, api_key: str = None, preferred_api: str =
         return {"Input ISBN": isbn_raw, "Error": f"No data found by {api_source_used} API for {query_type} {isbn_to_query}"}
 
 
-def main():
-    parser = argparse.ArgumentParser(description="ISBN Bibliographer: Process ISBNs from Excel and retrieve book information.")
-    parser.add_argument("input_excel", help="Path to the input Excel file (.xlsx, .xls) containing ISBNs.")
-    parser.add_argument("output_excel", help="Path for the output Excel file (.xlsx) with bibliography data.")
-    parser.add_argument("--config", help="Path to a JSON configuration file.", default=None)
-    # Add more arguments as needed: --api, --scanner-mode, etc.
-    # For now, focusing on core batch processing.
-    # parser.add_argument("--isbn_column", help="Name of the column containing ISBNs in the input file.", default="ISBN") # Will use from CONFIG
-    # parser.add_argument("--sheet_name", help="Name of the sheet for the output Excel file.", default="Bibliography") # Will use from CONFIG
+def run_batch_mode(input_excel_path: str, output_excel_path: str, config: dict):
+    """Handles the original batch processing from an input Excel file."""
+    logging.info(f"Running in Batch Mode.")
+    logging.info(f"Input file: {input_excel_path}")
+    logging.info(f"Output file: {output_excel_path}")
+    logging.info(f"Using ISBN column: {config['isbn_column_name']}")
 
-    args = parser.parse_args()
-
-    load_config(args.config) # Load config if provided
-
-    logging.info(f"Starting ISBN Bibliography process...")
-    logging.info(f"Input file: {args.input_excel}")
-    logging.info(f"Output file: {args.output_excel}")
-    logging.info(f"Using ISBN column: {CONFIG['isbn_column_name']}")
-
-    raw_isbns = read_isbns_from_excel(args.input_excel, isbn_column_name=CONFIG["isbn_column_name"])
+    raw_isbns = read_isbns_from_excel(input_excel_path, isbn_column_name=config["isbn_column_name"])
 
     if not raw_isbns:
-        logging.warning("No ISBNs found in the input file or an error occurred during reading.")
-        # Create an empty output file or one with just headers?
-        # For now, just exit if no ISBNs.
-        print("No ISBNs to process. Exiting.")
+        logging.warning("No ISBNs found in the input file or an error occurred during reading for batch mode.")
+        print("No ISBNs to process from input file. Exiting batch mode.")
+        # Optionally, write an empty file or a file with just headers if output_excel_path is new
+        # write_bibliography_to_excel([], output_excel_path, sheet_name=config["output_sheet_name"])
         return
 
     bibliography_data = []
@@ -140,17 +129,14 @@ def main():
 
     for isbn_raw in raw_isbns:
         processed_count += 1
-        logging.info(f"Processing ISBN {processed_count}/{total_isbns}: {isbn_raw}")
+        # logging.info(f"Processing ISBN {processed_count}/{total_isbns}: {isbn_raw}") # Already logged in process_single_isbn
 
-        # Basic rate limiting
-        if processed_count > 1 and CONFIG["rate_limit_delay"] > 0:
-            logging.debug(f"Waiting for {CONFIG['rate_limit_delay']}s before next API call...")
-            time.sleep(CONFIG["rate_limit_delay"])
+        if processed_count > 1 and config["rate_limit_delay"] > 0:
+            logging.debug(f"Waiting for {config['rate_limit_delay']}s before next API call...")
+            time.sleep(config["rate_limit_delay"])
 
-        # For now, only Google API is implemented
-        api_to_use = CONFIG["api_source_priority"][0] if CONFIG["api_source_priority"] else "google"
-
-        result = process_single_isbn(isbn_raw, api_key=CONFIG["google_books_api_key"], preferred_api=api_to_use)
+        api_to_use = config["api_source_priority"][0] if config["api_source_priority"] else "google"
+        result = process_single_isbn(isbn_raw, api_key=config["google_books_api_key"], preferred_api=api_to_use)
         bibliography_data.append(result)
 
         if result.get("Error"):
@@ -158,25 +144,170 @@ def main():
         else:
             success_count += 1
 
-        # Simple progress update to console
-        print(f"Progress: {processed_count}/{total_isbns} (Success: {success_count}, Fail: {failure_count})", end='\r')
+        print(f"Batch Progress: {processed_count}/{total_isbns} (Success: {success_count}, Fail: {failure_count})", end='\r')
 
-    print("\nProcessing complete.") # Newline after progress updates
+    print("\nBatch processing complete.")
 
     if bibliography_data:
-        write_success = write_bibliography_to_excel(bibliography_data, args.output_excel, sheet_name=CONFIG["output_sheet_name"])
+        write_success = write_bibliography_to_excel(bibliography_data, output_excel_path, sheet_name=config["output_sheet_name"])
         if write_success:
-            logging.info(f"Bibliography data successfully written to {args.output_excel}")
+            logging.info(f"Batch bibliography data successfully written to {output_excel_path}")
         else:
-            logging.error(f"Failed to write bibliography data to {args.output_excel}")
+            logging.error(f"Failed to write batch bibliography data to {output_excel_path}")
     else:
-        logging.info("No bibliography data was generated to write.")
+        logging.info("No bibliography data was generated from batch mode to write.")
 
-    logging.info(f"--- Summary ---")
+    logging.info(f"--- Batch Mode Summary ---")
     logging.info(f"Total ISBNs processed: {processed_count}")
     logging.info(f"Successful lookups: {success_count}")
     logging.info(f"Failed lookups: {failure_count}")
-    print(f"\nSummary:\nTotal ISBNs processed: {processed_count}\nSuccessful lookups: {success_count}\nFailed lookups: {failure_count}")
+    print(f"\nBatch Summary:\nTotal ISBNs processed: {processed_count}\nSuccessful lookups: {success_count}\nFailed lookups: {failure_count}")
+
+
+def run_hid_scanner_mode(output_filepath: str, config: dict):
+    """Handles ISBN processing via simulated HID scanner input."""
+    logging.info(f"Activating HID Scanner Mode. Output will be to {output_filepath}")
+    print("HID Scanner Mode Activated.")
+    print(f"Scanned ISBNs will be processed and saved/appended to: {output_filepath}")
+    print("Type 'QUITSCAN' (all caps) and press Enter to finish scanning and save.")
+
+    bibliography_data = [] # This will hold all data (existing + new)
+
+    # --- Excel Handling: Load existing data if file exists ---
+    if os.path.exists(output_filepath):
+        try:
+            logging.info(f"Output file {output_filepath} exists. Attempting to load existing data.")
+            # Read all columns as string to avoid type issues, especially with ISBNs and years
+            # Ensure openpyxl is used for xlsx
+            df_existing = pd.read_excel(output_filepath, sheet_name=config["output_sheet_name"], dtype=str, engine='openpyxl')
+            # Convert pandas' NaT or numpy.nan to empty strings or None for consistency before to_dict
+            # Using fillna('') ensures that all "empty" cells become empty strings.
+            df_existing = df_existing.fillna('')
+            bibliography_data = df_existing.to_dict('records') # List of dictionaries
+            logging.info(f"Loaded {len(bibliography_data)} existing records from '{output_filepath}'.")
+            print(f"Loaded {len(bibliography_data)} existing records from '{output_filepath}'.")
+        except FileNotFoundError: # Should be caught by os.path.exists, but as a safeguard
+            logging.info(f"Output file {output_filepath} not found (should not happen if os.path.exists passed). Starting fresh.")
+            bibliography_data = []
+        except ValueError as ve: # Handles issues like "Excel file format cannot be determined" or sheet not found
+            logging.error(f"ValueError reading {output_filepath}: {ve}. It might be corrupted, not an Excel file, or sheet '{config['output_sheet_name']}' missing. Starting with an empty list.")
+            print(f"Warning: Could not properly read existing Excel file at '{output_filepath}'. Check file or sheet name. Starting fresh for this session.")
+            bibliography_data = []
+        except Exception as e:
+            logging.error(f"An unexpected error occurred loading existing data from {output_filepath}: {e}. Starting with an empty list.")
+            print(f"Warning: An error occurred reading existing Excel file. Starting fresh for this session.")
+            bibliography_data = []
+    else:
+        logging.info(f"Output file {output_filepath} does not exist. Starting fresh.")
+        print(f"Output file '{output_filepath}' will be created.")
+        bibliography_data = []
+    # --- End of Excel Handling ---
+
+    scanned_items_session = [] # Collects only items from this new session to be appended
+    processed_count = 0
+    success_count = 0
+    failure_count = 0
+
+    while True:
+        try:
+            scanned_input = input("Scan ISBN (or type 'QUITSCAN' to finish): ").strip()
+        except EOFError: # Handle if input stream closes unexpectedly (e.g. piping)
+            logging.warning("EOF received. Exiting scanner mode.")
+            break
+        except KeyboardInterrupt: # Handle Ctrl+C
+            logging.info("Keyboard interrupt received. Exiting scanner mode.")
+            print("\nScan interrupted. Finishing up...")
+            break
+
+        if scanned_input.upper() == 'QUITSCAN':
+            logging.info("QUITSCAN command received. Exiting scanner mode.")
+            break
+
+        if not scanned_input:
+            logging.debug("Empty scan ignored.")
+            continue
+
+        processed_count += 1
+        logging.info(f"Processing scanned input: {scanned_input}")
+
+        # Basic rate limiting (might be less critical for manual scanning but good to keep)
+        if processed_count > 1 and config["rate_limit_delay"] > 0: # Check against total processed in session
+            logging.debug(f"Waiting for {config['rate_limit_delay']}s before next API call...")
+            time.sleep(config["rate_limit_delay"])
+
+        api_to_use = config["api_source_priority"][0] if config["api_source_priority"] else "google"
+        result = process_single_isbn(scanned_input, api_key=config["google_books_api_key"], preferred_api=api_to_use)
+
+        # For this step, we just add to session items. Combining with existing data is next.
+        scanned_items_session.append(result)
+
+        if result.get("Error"):
+            failure_count += 1
+            logging.warning(f"Failed to process scanned ISBN {scanned_input}: {result.get('Error')}")
+            print(f"Error for {scanned_input}: {result.get('Error')}")
+        else:
+            success_count += 1
+            logging.info(f"Successfully processed scanned ISBN {scanned_input}: {result.get('Title')}")
+            print(f"Successfully processed {scanned_input}: {result.get('Title', 'N/A')}")
+
+        # Progress for current session
+        print(f"Session Scans: {processed_count} (Success: {success_count}, Fail: {failure_count}) | Type QUITSCAN to save & exit.")
+
+    logging.info("Finished HID scanning.")
+
+    if scanned_items_session:
+        bibliography_data.extend(scanned_items_session) # Add newly scanned items to the main list
+        logging.info(f"Added {len(scanned_items_session)} new items to the bibliography list.")
+
+    if bibliography_data: # If there's any data (old or new)
+        total_records_to_write = len(bibliography_data)
+        print(f"\nSaving {total_records_to_write} total records to {output_filepath}...")
+        write_success = write_bibliography_to_excel(bibliography_data, output_filepath, sheet_name=config["output_sheet_name"])
+        if write_success:
+            logging.info(f"HID scanner bibliography data ({total_records_to_write} records) successfully written to {output_filepath}")
+            print("Data saved successfully.")
+        else:
+            logging.error(f"Failed to write HID scanner bibliography data to {output_filepath}")
+            print("Error saving data.")
+    else:
+        logging.info("No data (neither existing nor newly scanned) to write.")
+        print("No data to save.")
+
+    logging.info(f"--- HID Scanner Mode Summary (Session: {processed_count} scans, {success_count} success, {failure_count} fail) ---")
+    logging.info(f"Total ISBNs processed in session: {processed_count}")
+    logging.info(f"Successful lookups in session: {success_count}")
+    logging.info(f"Failed lookups in session: {failure_count}")
+    print(f"\nSession Summary:\nTotal Scans: {processed_count}\nSuccessful: {success_count}\nFailed: {failure_count}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="ISBN Bibliographer: Process ISBNs and retrieve book information.")
+
+    # Group for mutually exclusive modes: batch file input vs scanner input
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--input_excel", help="Path to the input Excel file (.xlsx, .xls) for batch processing.")
+    group.add_argument("--scanner", action="store_true", help="Activate HID barcode scanner mode. Output file must be specified via --output_excel.")
+
+    parser.add_argument("--output_excel", help="Path for the output Excel file (.xlsx). Required for all modes.", required=True)
+    parser.add_argument("--config", help="Path to a JSON configuration file.", default=None)
+
+    args = parser.parse_args()
+
+    load_config(args.config) # Load config if provided
+    logging.info(f"Starting ISBN Bibliography process...")
+
+    if args.scanner:
+        logging.info("Scanner mode selected.")
+        # For now, this defaults to HID. Later, we might add another arg like --scanner_type if camera is added.
+        run_hid_scanner_mode(args.output_excel, CONFIG)
+    elif args.input_excel:
+        logging.info("Batch mode selected.")
+        run_batch_mode(args.input_excel, args.output_excel, CONFIG)
+    else:
+        # This case should ideally not be reached due to the mutually exclusive group being required.
+        parser.print_help()
+        logging.error("No valid mode selected (e.g., --input_excel or --scanner). This shouldn't happen.")
+        print("Error: You must specify either --input_excel for batch mode or --scanner for scanner mode.")
 
 
 if __name__ == "__main__":
