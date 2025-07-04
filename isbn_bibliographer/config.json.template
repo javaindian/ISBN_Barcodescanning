@@ -1,5 +1,4 @@
 {
-    "google_books_api_key": null,
     "isbn_column_name": "ISBN",
     "output_sheet_name": "Bibliography",
     "api_source_priority": ["google"],

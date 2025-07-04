@@ -13,14 +13,12 @@ from modules.bibliography_formatter import format_book_data
 # Configure logging for the main script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [MAIN] - %(message)s')
 
-# --- Configuration Loading (Placeholder for Step 9) ---
-# This section will be enhanced in a later step to load from a config file.
+# --- Configuration Loading ---
 CONFIG = {
-    "google_books_api_key": None, # User should replace this or use a config file
-    "isbn_column_name": "ISBN",
-    "output_sheet_name": "Bibliography",
-    "api_source_priority": ["google"], # For future expansion with multiple APIs
-    "rate_limit_delay": 1 # Seconds to wait between API calls (basic rate limiting)
+    "isbn_column_name": "ISBN", # Default value
+    "output_sheet_name": "Bibliography", # Default value
+    "api_source_priority": ["google"],
+    "rate_limit_delay": 1
 }
 
 def load_config(config_path: str = None) -> None:
@@ -30,27 +28,28 @@ def load_config(config_path: str = None) -> None:
         try:
             with open(config_path, 'r') as f:
                 user_config = json.load(f)
-            CONFIG.update(user_config)
+            CONFIG.update(user_config) # Overwrite defaults with user config
             logging.info(f"Configuration loaded from {config_path}")
         except FileNotFoundError:
-            logging.warning(f"Configuration file {config_path} not found. Using default/hardcoded config.")
+            logging.warning(f"Configuration file {config_path} not found. Using default config values.")
         except json.JSONDecodeError:
-            logging.error(f"Error decoding JSON from {config_path}. Using default/hardcoded config.")
+            logging.error(f"Error decoding JSON from {config_path}. Using default config values.")
         except Exception as e:
-            logging.error(f"Error loading config {config_path}: {e}. Using default/hardcoded config.")
+            logging.error(f"Error loading config {config_path}: {e}. Using default config values.")
     else:
-        logging.info("No config file specified. Using default/hardcoded config.")
-    # Ensure essential keys have default values if not in user_config or no config file
-    CONFIG.setdefault("google_books_api_key", None)
+        logging.info("No config file specified. Using default config values.")
+
+    # Ensure essential keys have their default values if not overridden or if config loading failed
     CONFIG.setdefault("isbn_column_name", "ISBN")
     CONFIG.setdefault("output_sheet_name", "Bibliography")
     CONFIG.setdefault("api_source_priority", ["google"])
     CONFIG.setdefault("rate_limit_delay", 1)
 
 
-def process_single_isbn(isbn_raw: str, api_key: str = None, preferred_api: str = "google"):
+def process_single_isbn(isbn_raw: str, preferred_api: str = "google"): # api_key parameter removed
     """
     Processes a single raw ISBN string: normalize, validate, fetch data, format.
+    API calls are now unauthenticated.
     """
     normalized_isbn = normalize_isbn(isbn_raw)
     logging.info(f"Processing ISBN: {isbn_raw} (Normalized: {normalized_isbn})")
@@ -83,7 +82,7 @@ def process_single_isbn(isbn_raw: str, api_key: str = None, preferred_api: str =
 
     # Simple API selection, will be expanded for multiple sources and fallback
     if preferred_api.lower() == "google":
-        book_api_response = fetch_book_data_google(isbn_to_query, api_key=api_key)
+        book_api_response = fetch_book_data_google(isbn_to_query) # api_key argument removed
         api_source_used = "google"
     # Add other APIs here with elif preferred_api.lower() == "openlibrary": etc.
 
@@ -136,7 +135,8 @@ def run_batch_mode(input_excel_path: str, output_excel_path: str, config: dict):
             time.sleep(config["rate_limit_delay"])
 
         api_to_use = config["api_source_priority"][0] if config["api_source_priority"] else "google"
-        result = process_single_isbn(isbn_raw, api_key=config["google_books_api_key"], preferred_api=api_to_use)
+        # Call to process_single_isbn no longer includes api_key
+        result = process_single_isbn(isbn_raw, preferred_api=api_to_use)
         bibliography_data.append(result)
 
         if result.get("Error"):
@@ -236,9 +236,9 @@ def run_hid_scanner_mode(output_filepath: str, config: dict):
             time.sleep(config["rate_limit_delay"])
 
         api_to_use = config["api_source_priority"][0] if config["api_source_priority"] else "google"
-        result = process_single_isbn(scanned_input, api_key=config["google_books_api_key"], preferred_api=api_to_use)
+        # Call to process_single_isbn no longer includes api_key
+        result = process_single_isbn(scanned_input, preferred_api=api_to_use)
 
-        # For this step, we just add to session items. Combining with existing data is next.
         scanned_items_session.append(result)
 
         if result.get("Error"):
