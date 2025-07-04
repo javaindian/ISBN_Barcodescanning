@@ -8,16 +8,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes"
 
-# In a real application, API_KEY would be loaded from a config file or environment variable
-API_KEY = None # Replace with your actual Google Books API key if you have one
+# API_KEY is no longer used directly here as calls will be unauthenticated.
 
-def fetch_book_data_google(isbn: str, api_key: str = None) -> dict | None:
+def fetch_book_data_google(isbn: str) -> dict | None:
     """
-    Fetches book data from the Google Books API using an ISBN.
+    Fetches book data from the Google Books API using an ISBN via unauthenticated requests.
 
     Args:
         isbn (str): The ISBN (10 or 13) of the book.
-        api_key (str, optional): Google Books API key. Defaults to None.
 
     Returns:
         dict | None: A dictionary containing book information if found, else None.
@@ -25,8 +23,7 @@ def fetch_book_data_google(isbn: str, api_key: str = None) -> dict | None:
     params = {
         "q": f"isbn:{isbn}"
     }
-    if api_key:
-        params["key"] = api_key
+    # No API key is added to params for unauthenticated requests
 
     try:
         response = requests.get(GOOGLE_BOOKS_API_URL, params=params, timeout=10) # 10 seconds timeout
@@ -57,22 +54,17 @@ def fetch_book_data_google(isbn: str, api_key: str = None) -> dict | None:
 
 if __name__ == '__main__':
     # Test cases
-    # Note: To run these tests effectively, you might need a valid Google Books API key.
-    # Without an API key, requests are subject to lower quotas and might be less reliable.
-
-    # You can set your API_KEY here for testing, or pass it directly
-    # test_api_key = "YOUR_GOOGLE_BOOKS_API_KEY"
-    test_api_key = API_KEY # Uses the global API_KEY which is None by default
+    # Note: API calls are now unauthenticated.
 
     sample_isbn13 = "9780306406157" # A known valid ISBN-13
     sample_isbn10 = "0306406152"   # A known valid ISBN-10
     invalid_isbn = "1234567890"     # An invalid ISBN
     non_existent_isbn = "9780000000000" # A structurally valid but likely non-existent ISBN
 
-    print(f"--- Testing with API Key: {'Provided' if test_api_key else 'Not Provided'} ---")
+    print(f"--- Testing Google Books API (Unauthenticated) ---")
 
     print(f"\nFetching data for ISBN-13: {sample_isbn13}")
-    book_data_13 = fetch_book_data_google(sample_isbn13, api_key=test_api_key)
+    book_data_13 = fetch_book_data_google(sample_isbn13) # No api_key argument
     if book_data_13:
         print(f"Title: {book_data_13.get('volumeInfo', {}).get('title')}")
         # print(json.dumps(book_data_13, indent=2)) # Uncomment to see full response
@@ -82,7 +74,7 @@ if __name__ == '__main__':
     time.sleep(1) # Simple delay to avoid hitting rate limits if any
 
     print(f"\nFetching data for ISBN-10: {sample_isbn10}")
-    book_data_10 = fetch_book_data_google(sample_isbn10, api_key=test_api_key)
+    book_data_10 = fetch_book_data_google(sample_isbn10) # No api_key argument
     if book_data_10:
         print(f"Title: {book_data_10.get('volumeInfo', {}).get('title')}")
     else:
@@ -93,7 +85,7 @@ if __name__ == '__main__':
     print(f"\nFetching data for invalid ISBN structure: {invalid_isbn}")
     # The API might not error on "invalid" ISBNs if they are just numbers,
     # it will simply not find them. Validation should happen before calling the API.
-    book_data_invalid = fetch_book_data_google(invalid_isbn, api_key=test_api_key)
+    book_data_invalid = fetch_book_data_google(invalid_isbn) # No api_key argument
     if book_data_invalid:
         print(f"Title: {book_data_invalid.get('volumeInfo', {}).get('title')}")
     else:
@@ -102,26 +94,10 @@ if __name__ == '__main__':
     time.sleep(1)
 
     print(f"\nFetching data for non-existent ISBN: {non_existent_isbn}")
-    book_data_non_existent = fetch_book_data_google(non_existent_isbn, api_key=test_api_key)
+    book_data_non_existent = fetch_book_data_google(non_existent_isbn) # No api_key argument
     if book_data_non_existent:
         print(f"Title: {book_data_non_existent.get('volumeInfo', {}).get('title')}")
     else:
         print("No data found or error occurred (as expected for non-existent ISBN).")
 
-    # Example of how it might be used with an API key from a config file (conceptual)
-    # try:
-    #     with open("config.json", "r") as f:
-    #         config = json.load(f)
-    #         API_KEY_FROM_CONFIG = config.get("google_books_api_key")
-    # except FileNotFoundError:
-    #     API_KEY_FROM_CONFIG = None
-    #
-    # if API_KEY_FROM_CONFIG:
-    #     print("\n--- Testing with API Key from hypothetical config.json ---")
-    #     book_data_config_key = fetch_book_data_google(sample_isbn13, api_key=API_KEY_FROM_CONFIG)
-    #     if book_data_config_key:
-    #         print(f"Title: {book_data_config_key.get('volumeInfo', {}).get('title')}")
-    #     else:
-    #         print("No data found or error occurred.")
-    # else:
-    #     print("\nSkipping test with config file API key (config.json or key not found).")
+    # The conceptual test for API key from config is no longer relevant here.

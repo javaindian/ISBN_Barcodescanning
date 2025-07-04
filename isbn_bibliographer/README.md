@@ -38,17 +38,17 @@ requests
     pip install -r requirements.txt
     ```
 
-3.  **Configuration (Optional but Recommended for Google Books API):**
+3.  **Configuration (Optional):**
     Create a `config.json` file in the `isbn_bibliographer` directory by copying `config.json.template`.
     ```json
     {
-        "google_books_api_key": "YOUR_GOOGLE_BOOKS_API_KEY",
         "isbn_column_name": "ISBN",
         "output_sheet_name": "Bibliography",
+        "api_source_priority": ["google"],
         "rate_limit_delay": 1
     }
     ```
-    Replace `"YOUR_GOOGLE_BOOKS_API_KEY"` with your actual Google Books API key if you have one. While the Google Books API can be used without a key, it's subject to stricter anonymous quota limits. An API key allows for more requests. You can obtain one from the [Google Cloud Console](https://console.cloud.google.com/apis/library/books.googleapis.com).
+    The application uses unauthenticated requests to the Google Books API by default, so an API key is not required. The `config.json` file can be used to customize other parameters like the ISBN column name in input files or the default rate limiting delay.
 
 ## Usage
 
